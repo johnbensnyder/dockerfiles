@@ -1,6 +1,6 @@
 # NGC based docker container with custom TF ops compiled for Intel Skylake and Nvidia V100
 
-# docker build -t johnbensnyder/ngc-19.09-tf-1.14-skylake:0.0.0-a
+# docker build -t johnbensnyder/ngc-19.09-tf-1.14-skylake:0.0.0-a -f Dockerfile.ngc_tf_sizefix_skylake .
 
 FROM nvcr.io/nvidia/tensorflow:19.09-py3
 
