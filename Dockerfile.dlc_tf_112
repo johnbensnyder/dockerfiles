@@ -28,7 +28,7 @@ RUN wget https://www.open-mpi.org/software/ompi/v$(echo "${OPENMPI_VERSION}" | c
     cd openmpi-${OPENMPI_VERSION} && \
     ./configure --enable-orterun-prefix-by-default --with-verbs --prefix=/usr/local/mpi --disable-getpwuid && \
     make -j install && \
-    sudo echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && \
+    echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && \
     ldconfig
 
 ## EFA and MPI SETUP
