@@ -21,7 +21,9 @@ RUN	apt install -y libnccl2=2.4.8-1+cuda10.0 \
 
 # reinstall openmpi
 ENV OPENMPI_VERSION=3.1.4
-RUN wget -q -O - https://www.open-mpi.org/software/ompi/v$(echo "${OPENMPI_VERSION}" | cut -d . -f 1-2)/downloads/openmpi-${OPENMPI_VERSION}.tar.gz | tar -xzf -cd openmpi-${OPENMPI_VERSION} && \
+RUN wget https://www.open-mpi.org/software/ompi/v$(echo "${OPENMPI_VERSION}" | cut -d . -f 1-2)/downloads/openmpi-${OPENMPI_VERSION}.tar.gz && \
+    tar -xzf openmpi-${OPENMPI_VERSION}.tar.gz && \
+    cd openmpi-${OPENMPI_VERSION} && \
     ./configure --enable-orterun-prefix-by-default --with-verbs --prefix=/usr/local/mpi --disable-getpwuid && \
     make -j install && \
     sudo echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && \
