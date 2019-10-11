@@ -16,8 +16,10 @@ RUN	apt install -y libnccl2=2.4.8-1+cuda10.0 \
     cuda-command-line-tools-10-0 \
 		libnccl-dev=2.4.8-1+cuda10.0 \
 		gcc-4.9 \
-        g++-4.9 \
-        gcc-4.9-base
+    g++-4.9 \
+    gcc-4.9-base \
+    libibverbs-dev \
+    libsysfs-dev
 
 # reinstall openmpi
 ENV OPENMPI_VERSION=3.1.4
