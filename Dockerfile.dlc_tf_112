@@ -1,0 +1,70 @@
+# DockerHub unaltered mirror of AWS Deep Learning Container
+FROM armandmcqueen/tensorflow-training:1.13-horovod-gpu-py36-cu100-ubuntu16.04
+
+RUN apt-get install less
+
+# Need to reinstall some libraries the DL container provides due to custom Tensorflow binary
+RUN pip uninstall -y tensorflow tensorboard tensorflow-estimator keras h5py horovod numpy
+
+# Update NCCL
+#RUN wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64/nvidia-machine-learning-repo-ubuntu1604_1.0.0-1_amd64.deb
+#RUN	dpkg -i nvidia-machine-learning-repo-ubuntu1604_1.0.0-1_amd64.deb
+RUN	apt update
+RUN	apt install -y libnccl2=2.4.8-1+cuda10.0 \
+    cuda-command-line-tools-10-0 \
+		libnccl-dev=2.4.8-1+cuda10.0 \
+		libnccl-net=2.4.8-1+cuda10.0 \
+		gcc-4.9 \
+        g++-4.9 \
+        gcc-4.9-base
+
+# reinstall openmpi
+ENV OPENMPI_VERSION=3.1.4
+RUN wget -q -O - https://www.open-mpi.org/software/ompi/v$(echo "${OPENMPI_VERSION}" cut -d . -f 1-2)/downloads/openmpi-${OPENMPI_VERSION}.tar.gz && \
+    tar -xzf -cd openmpi-${OPENMPI_VERSION} && \
+    ./configure --enable-orterun-prefix-by-default --with-verbs --prefix=/usr/local/mpi --disable-getpwuid && \
+    make -j install && \
+    sudo echo "/usr/local/mpi/lib" >> /etc/ld.so.conf.d/openmpi.conf && \
+    ldconfig
+
+## EFA and MPI SETUP
+RUN curl -O https://s3-us-west-2.amazonaws.com/aws-efa-installer/aws-efa-installer-1.5.1.tar.gz \
+    && tar -xf aws-efa-installer-1.5.1.tar.gz \
+    && cd aws-efa-installer \
+    && ./efa_installer.sh -y --skip-kmod --skip-limit-conf --debug-packages
+
+ENV PATH "/opt/amazon/openmpi/bin:/opt/amazon/efa/bin:${PATH}"
+
+# Download and install custom Tensorflow binary
+RUN wget https://github.com/aws-samples/mask-rcnn-tensorflow/releases/download/v0.0.0/tensorflow-1.12.3-cp36-nccl-cp36m-linux_x86_64.whl && \
+	mv tensorflow-1.12.3-cp36-nccl-cp36m-linux_x86_64.whl tensorflow-1.12.3-cp36-cp36m-linux_x86_64.whl && \
+	pip install tensorflow-1.12.3-cp36-cp36m-linux_x86_64.whl && \
+    rm tensorflow-1.12.3-cp36-cp36m-linux_x86_64.whl
+
+RUN pip install keras h5py
+
+# Install Horovod, temporarily using CUDA stubs
+RUN ldconfig /usr/local/cuda-10.0/targets/x86_64-linux/lib/stubs && \
+    CC=/usr/bin/gcc-4.9 HOROVOD_GPU_ALLREDUCE=NCCL HOROVOD_WITH_TENSORFLOW=1  pip install --no-cache-dir horovod && \
+    ldconfig
+
+
+# Install OpenSSH for MPI to communicate between containers
+RUN mkdir -p /root/.ssh/ && \
+  ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa && \
+  cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys && \
+  printf "Host *\n  StrictHostKeyChecking no\n" >> /root/.ssh/config
+
+
+RUN pip install Cython
+RUN pip install ujson opencv-python pycocotools matplotlib
+RUN pip install --ignore-installed numpy==1.16.2
+
+
+# TODO: Do I really need this now that we are using the DL container?
+ARG CACHEBUST=1
+
+RUN git clone https://github.com/aws-samples/mask-rcnn-tensorflow -b nhwc
+
+RUN chmod -R +w /mask-rcnn-tensorflow
+RUN pip install --ignore-installed -e /mask-rcnn-tensorflow/
