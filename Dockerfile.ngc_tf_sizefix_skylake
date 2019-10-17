@@ -18,6 +18,8 @@ RUN awk 'NR==59 {$0="export TF_CUDA_COMPUTE_CAPABILITIES=\"7.0\""} { print }' nv
 # batch norm fix for tf 1.14
 RUN rm /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers/normalization.py
 COPY assets/normalization.py /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers/normalization.py
+RUN sed '116d' /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers/__init__.py > /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers/__init__.py
+
 
 RUN chmod +x nvbuild_new.sh
 RUN ./nvbuild_new.sh --python3.6
