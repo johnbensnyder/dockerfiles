@@ -16,14 +16,8 @@ RUN awk 'NR==59 {$0="export TF_CUDA_COMPUTE_CAPABILITIES=\"7.0\""} { print }' nv
 	rm nvbuild_1.sh
 	
 # batch norm fix for tf 1.14
-WORKDIR /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers
-RUN awk 'NR==792 {$0="    # if scale is not None:"} { print }' normalization.py > normalization_1.py && \
-    awk 'NR==793 {$0="    #   scale = math_ops.cast(scale, inputs.dtype)"} { print }' normalization_1.py > normalization_2.py && \
-    rm normalization.py && \
-    rm normalization_1.py && \
-    mv normalization_2.py normalization.py
-
-WORKDIR /opt/tensorflow
+RUN rm /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers/normalization.py
+COPY assets/normalization.py /opt/tensorflow/tensorflow-source/tensorflow/python/keras/layers/normalization.py
 
 RUN chmod +x nvbuild_new.sh
 RUN ./nvbuild_new.sh --python3.6
