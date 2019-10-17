@@ -23,6 +23,8 @@ RUN awk 'NR==792 {$0="    # if scale is not None:"} { print }' normalization.py 
     rm normalization_1.py && \
     mv normalization_2.py normalization.py
 
+WORKDIR /opt/tensorflow
+
 RUN ./nvbuild_new.sh --python3.6
 
 RUN apt-get update && \
