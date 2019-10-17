@@ -25,6 +25,7 @@ RUN awk 'NR==792 {$0="    # if scale is not None:"} { print }' normalization.py 
 
 WORKDIR /opt/tensorflow
 
+RUN chmod +x nvbuild_new.sh
 RUN ./nvbuild_new.sh --python3.6
 
 RUN apt-get update && \
