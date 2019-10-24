@@ -1,0 +1,57 @@
+# NGC based docker container with custom TF ops compiled for Intel Sandy Bridge and Nvidia V100
+
+# docker build -t johnbensnyder/ngc-19.09-tf-1.14:10.22.2019 -f Dockerfile.ngc_tf_sizefix .
+
+FROM nvcr.io/nvidia/tensorflow:19.09-py3
+
+# change cudnn version
+WORKDIR /root
+
+ENV CUDNN_VERSION 7.6.4.38
+
+RUN wget https://github.com/johnbensnyder/dockerfiles/releases/download/0.0.0-a1/cudnn-10.1-linux-x64-v7.6.4.38.tgz && \
+    tar -xzvf cudnn-10.1-linux-x64-v7.6.4.38.tgz && \
+    rm /usr/lib/x86_64-linux-gnu/libcudnn.so* && \
+    rm /usr/lib/x86_64-linux-gnu/include/cudnn.h && \
+    cp /root/cuda/include/cudnn.h /usr/lib/x86_64-linux-gnu/include && \
+    cp /root/cuda/lib64/libcudnn* /usr/lib/x86_64-linux-gnu && \
+    chmod a+r /usr/lib/x86_64-linux-gnu/include/cudnn.h /usr/lib/x86_64-linux-gnu/libcudnn* && \
+    rm /root/cudnn-10.1-linux-x64-v7.6.4.38.tgz && \
+    rm -rf /root/cuda
+
+WORKDIR /opt/tensorflow
+
+RUN cd tensorflow-source && \
+	wget https://github.com/aws-samples/mask-rcnn-tensorflow/releases/download/v0.0.0/SizeFix.patch && \
+	patch -p1 < SizeFix.patch && \
+	cd ..
+
+RUN awk 'NR==59 {$0="export TF_CUDA_COMPUTE_CAPABILITIES=\"7.0\""} { print }' nvbuild.sh > nvbuild_1.sh && \
+	awk 'NR==62 {$0="export CC_OPT_FLAGS=\"-march=native\""} { print }' nvbuild_1.sh > nvbuild_new.sh && \
+	rm nvbuild_1.sh
+	
+RUN chmod +x nvbuild_new.sh
+RUN export CUDNN_VERSION=7.6.4.38 && \
+    ./nvbuild_new.sh --python3.6
+
+RUN apt-get update && \
+    apt-get install -y libsm6 libxext6 libxrender-dev && \
+    pip install opencv-python
+
+RUN pip uninstall -y numpy && \
+    pip uninstall -y numpy
+
+RUN pip install --ignore-installed numpy==1.16.2
+
+WORKDIR /
+
+RUN git clone https://github.com/aws-samples/mask-rcnn-tensorflow.git
+
+RUN chmod -R +w /mask-rcnn-tensorflow
+RUN pip install --ignore-installed -e /mask-rcnn-tensorflow/
+
+RUN apt update && \
+    apt upgrade -y && \
+    apt install -y openssh-server
+
+RUN mkdir -p /var/run/sshd
