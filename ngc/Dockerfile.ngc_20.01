@@ -1,0 +1,13 @@
+FROM nvcr.io/nvidia/tensorflow:20.01-tf2-py3
+
+ENV PATH="/usr/local/nvm/versions/node/v13.4.0/bin:${PATH}"
+
+RUN pip install ipywidgets \
+    && jupyter labextension install @jupyter-widgets/jupyterlab-manager
+
+RUN pip install jupyterlab-nvdashboard tqdm tensorflow_datasets \
+    && jupyter labextension install jupyterlab-nvdashboard
+
+CMD nohup jupyter lab --allow-root --ip=0.0.0.0 --no-browser > notebook.log
+
+# docker run -it --rm -d --gpus all --net=host --name tensorflow -v ~/workspace:/workspace/shared_workspace johnbensnyder/ngc:20.01
