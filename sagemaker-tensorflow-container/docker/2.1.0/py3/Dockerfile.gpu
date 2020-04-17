@@ -135,7 +135,7 @@ RUN ln -s $(which ${PYTHON}) /usr/local/bin/python \
 # install PyYAML==5.1.2 to avoid conflict with latest awscli
 # # python-dateutil==2.8.0 to satisfy botocore associated with latest awscli
 RUN ${PIP} install --no-cache-dir -U \
-    numpy==1.18.1 \
+    numpy==1.17.5 \
     scipy==1.2.2 \
     scikit-learn==0.22 \
     pandas==1.0.1 \
@@ -207,3 +207,35 @@ RUN ${PIP} install tensorflow_addons \
     pip install pycocotools
 
 CMD ["bin/bash"]
+
+########################################################################
+# Build docker image
+########################################################################
+#
+# DOCKERHUB_USER=johnbensnyder
+# IMAGE_NAME=sagemaker_tf:2.1.0
+# docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME} -f Dockerfile.gpu .
+
+##################################################################
+# Push to Dockerhub
+##################################################################
+
+# docker login
+# docker push ${DOCKERHUB_USER}/${IMAGE_NAME}
+
+########################################################################
+# login to ECS
+########################################################################
+#
+# ECR_USER=jbsnyder
+# ALGO_NAME=sagemaker-tf-2.1.0
+# region=$(aws configure get region)
+# account=$(aws sts get-caller-identity --query Account --output text)
+# fullname="${account}.dkr.ecr.${region}.amazonaws.com/${ECR_USER}:${ALGO_NAME}"
+# $(aws ecr get-login --region ${region} --no-include-email)
+# docker tag ${DOCKERHUB_USER}/${IMAGE_NAME} ${fullname}
+# docker push ${fullname}
+#
+########################################################################
+# 578276202366.dkr.ecr.us-east-1.amazonaws.com/jbsnyder:sagemaker-tf-2.1.0
+########################################################################

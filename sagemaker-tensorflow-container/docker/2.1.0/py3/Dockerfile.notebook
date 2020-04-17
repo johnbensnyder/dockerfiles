@@ -135,7 +135,7 @@ RUN ln -s $(which ${PYTHON}) /usr/local/bin/python \
 # install PyYAML==5.1.2 to avoid conflict with latest awscli
 # # python-dateutil==2.8.0 to satisfy botocore associated with latest awscli
 RUN ${PIP} install --no-cache-dir -U \
-    numpy==1.18.1 \
+    numpy==1.17.5 \
     scipy==1.2.2 \
     scikit-learn==0.22 \
     pandas==1.0.1 \
@@ -231,3 +231,18 @@ RUN mkdir /workspace
 WORKDIR /workspace
                                  
 CMD nohup jupyter lab --allow-root --ip=0.0.0.0 --no-browser > notebook.log
+
+########################################################################
+# Build docker image
+########################################################################
+#
+# DOCKERHUB_USER=johnbensnyder
+# IMAGE_NAME=sagemaker_tf:notebook_2.1.0
+# docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME} -f Dockerfile.notebook .
+
+##################################################################
+# Push to Dockerhub
+##################################################################
+
+# docker login
+# docker push ${DOCKERHUB_USER}/${IMAGE_NAME}
