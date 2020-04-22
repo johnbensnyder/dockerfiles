@@ -26,6 +26,8 @@ ARG PIP=pip3
 
 ARG TF_URL=https://tensorflow-aws.s3-us-west-2.amazonaws.com/2.1/AmazonLinux/gpu/final/tensorflow_gpu-2.1.0-cp36-cp36m-manylinux2010_x86_64.whl
 
+ARG NCCL_VERSION=2.5.6-1
+
 RUN apt-get update && apt-get install -y --no-install-recommends --allow-unauthenticated \
     python3-dev \
     python3-pip \
@@ -68,10 +70,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends --allow-unauthe
  && mkdir -p /var/run/sshd
 
 ##########################################################################
-# Install NCCL and EFA adapter
+# Install NCCL, MPI, and EFA adapter
+# Note that EFA driver does not install properly in Dockerfile
+# But matching driver is needed to compile nccl adapter used
+# within the docker container. The solution is to build
+# the Docker image on the DL AMI by copying EFA drivers
+# into Docker build environment, then temporarily copy
+# drivers into image
+# cp -R /opt/amazon/efa .
 #########################################################################
 
-ARG NCCL_VERSION=2.5.6-2
 RUN cd / \
     && wget https://github.com/NVIDIA/nccl/archive/v${NCCL_VERSION}.tar.gz \
     && tar -xf  v${NCCL_VERSION}.tar.gz \
@@ -79,7 +87,7 @@ RUN cd / \
     && cd nccl \
     && make -j src.build
 
-RUN mkdir /efa
+# copy local efa drivers into image
 COPY efa /efa
 
 # Install Open MPI
@@ -112,6 +120,7 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/usr/local/openmpi/lib:$L
 ENV PATH /usr/local/openmpi/bin/:$PATH
 ENV PATH=/usr/local/nvidia/bin:$PATH
 
+# Download EFA NCCL adapter
 RUN cd / \
     && git clone https://github.com/aws/aws-ofi-nccl.git -b aws \
     && cd aws-ofi-nccl \
@@ -125,6 +134,13 @@ RUN cd / \
        --prefix=/aws-ofi-nccl/install \
     && make && make install
 
+# Delete efa driver from image
+RUN rm -rf /efa
+
+#########################################################
+# Fix ssh for container communication
+#########################################################
+
 # SSH login fix. Otherwise user is kicked off after login
 RUN mkdir -p /var/run/sshd \
  && sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
@@ -135,7 +151,16 @@ RUN mkdir -p /root/.ssh/ \
  && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys \
  && printf "Host *\n  StrictHostKeyChecking no\n" >> /root/.ssh/config
 
+# Allow OpenSSH to talk to containers without asking for confirmation
+RUN cat /etc/ssh/ssh_config | grep -v StrictHostKeyChecking > /etc/ssh/ssh_config.new \
+ && echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config.new \
+ && mv /etc/ssh/ssh_config.new /etc/ssh/ssh_config
+
 WORKDIR /
+
+######################################################
+# Update pip
+######################################################
 
 RUN ${PIP} --no-cache-dir install --upgrade \
     pip \
@@ -144,6 +169,10 @@ RUN ${PIP} --no-cache-dir install --upgrade \
 # Some TF tools expect a "python" binary
 RUN ln -s $(which ${PYTHON}) /usr/local/bin/python \
  && ln -s $(which ${PIP}) /usr/bin/pip
+
+###########################################################
+# Install Tensorflow and utilities
+###########################################################
 
 # install PyYAML==5.1.2 to avoid conflict with latest awscli
 # # python-dateutil==2.8.0 to satisfy botocore associated with latest awscli
@@ -173,17 +202,16 @@ RUN ${PIP} install --no-cache-dir -U \
  && ${PIP} install --no-cache-dir -U \
     ${TF_URL}
 
-RUN rm -rf /efa
+#########################################################
+# Install Horovod
+# point toward NCCL header files used for EFA
+#########################################################
 
 # Install Horovod, temporarily using CUDA stubs
 RUN ldconfig /usr/local/cuda-10.1/targets/x86_64-linux/lib/stubs \
  && HOROVOD_GPU_ALLREDUCE=NCCL HOROVOD_WITH_TENSORFLOW=1 HOROVOD_NCCL_HOME=/nccl/build ${PIP} install --no-cache-dir horovod==0.18.2 \
  && ldconfig
 
-# Allow OpenSSH to talk to containers without asking for confirmation
-RUN cat /etc/ssh/ssh_config | grep -v StrictHostKeyChecking > /etc/ssh/ssh_config.new \
- && echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config.new \
- && mv /etc/ssh/ssh_config.new /etc/ssh/ssh_config
 
 ADD https://raw.githubusercontent.com/aws/aws-deep-learning-containers-utils/master/deep_learning_container.py /usr/local/bin/deep_learning_container.py
 
